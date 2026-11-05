@@ -76,7 +76,7 @@ Vercel → Add New → Project → 匯入 `czpeanut/parent-app`（框架自動�
 
 | # | 在哪裡 | 做什麼 | 為什麼 | 測試期間可以先跳過嗎 |
 |---|---|---|---|---|
-| 1 | Authentication → URL Configuration → **Redirect URLs** → Add URL | 加 `https://<家長端網址>/auth/callback`（**不要改上面的 Site URL**，那是 student-app 的） | Supabase 只會把登入後的使用者送回清單裡的網站；沒加的話「用 Google 登入」和信裡的登入連結會跑回 codexstudy.com | 只用 Email 登入碼的話可以；要測 Google 登入就要加 |
+| 1 | Authentication → URL Configuration → **Redirect URLs** → Add URL | 加 `https://<家長端網址>/**`（例：`https://parent-app-xxxx.vercel.app/**`，要跟網址列完全一樣）。**不要改上面的 Site URL**，那是 student-app 的 | Supabase 只會把登入後的使用者送回清單裡的網站；沒加或網址不完全一樣，「用 Google 登入」和信裡的登入連結會**跑回 codexstudy.com** | 只用 Email 登入碼的話可以；要測 Google 登入就要加 |
 | 2 | Authentication → **Email Templates** → Magic Link | 在信件內文加一行 `您的登入碼：{{ .Token }}` | 家長在 App 裡輸入 6 位數登入碼（iPhone 從主畫面開的 App 點信裡的連結會跳去 Safari，用登入碼比較順） | 不行，不加的話信裡沒有登入碼，只能點連結 |
 | 3 | Authentication → **SMTP Settings** | 設定寄信服務（例如 Resend、SendGrid） | Supabase 內建寄信每小時只能寄幾封，家長一多就收不到登入碼 | 可以，自己測試幾次用內建就夠 |
 | 4 | **左側主選單 Integrations**（不是 Database 底下）→ 搜尋「Database Webhooks」→ 第一次要按 **Enable webhooks** → Webhooks 分頁 → **Create a new hook**。<br>名稱隨意；Table `notification_jobs`；Events 勾 **Insert**；Type「HTTP Request」；Method `POST`；URL `https://<家長端網址>/api/jobs/notify`；HTTP Headers 加一筆 `x-notify-secret` = 你設的 `NOTIFY_WEBHOOK_SECRET`。<br>**找不到這個畫面**：改用 SQL，Database → Extensions 開 `pg_net`，把 `migrations/2026-11-05-optional-webhook-trigger.sql` 裡的網址和密鑰換掉，貼到 SQL Editor 執行（效果一樣，二選一） | 老師按上課／下課或傳訊息時，資料庫會多一筆「待通知」；這個設定讓 Supabase 馬上叫家長端去送推播 | 不測推播的話可以；沒設就收不到任何推播 |

@@ -19,7 +19,12 @@ function LoginInner() {
 
   useEffect(() => { if (session) router.replace(next) }, [session, router, next])
 
-  const callback = () => `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`
+  // 跳回網址不帶參數：Supabase Redirect URLs 只填 https://<網址>/auth/callback 也比對得到。
+  // 登入後要回的頁面先記在這台裝置，回呼頁再讀出來。
+  const callback = () => {
+    try { localStorage.setItem('pa:next', next) } catch { /* 私密瀏覽：回首頁 */ }
+    return `${window.location.origin}/auth/callback`
+  }
 
   const sendCode = async (e: React.FormEvent) => {
     e.preventDefault()

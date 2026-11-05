@@ -11,7 +11,8 @@ function CallbackInner() {
 
   useEffect(() => {
     if (error) return
-    const n = sp.get('next')
+    let n: string | null = null
+    try { n = localStorage.getItem('pa:next'); localStorage.removeItem('pa:next') } catch { /* 忽略 */ }
     const next = n && n.startsWith('/') && !n.startsWith('//') ? n : '/'
     const sb = browserSupabase()
     let done = false
