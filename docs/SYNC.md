@@ -65,6 +65,7 @@
 |---|---|---|
 | 2026-11-05 | `notification_jobs` 新增 `claimed_at TIMESTAMPTZ`（可為 NULL） | 無。student-app 只 INSERT、不指定這個欄位。若有 `SELECT *` 比對欄位的測試，要把它算進去 |
 | 2026-11-05 | 新增函式 `public.claim_notification_jobs(n int)`（只給 service role） | 無 |
+| 2026-11-05 | （選用，使用者手動執行）`notification_jobs` 上的 trigger `parent_app_notify`（`AFTER INSERT FOR EACH STATEMENT`，用 pg_net 呼叫家長端）。與後台 Database Webhook 二選一 | 無：錯誤一律吞掉、不會讓 student-app 的 INSERT 失敗（PGlite 實測：pg_net 未開時照常寫入；一次插 30 筆只呼叫 1 次） |
 
 `claimed_at` 的原因：交接文件 7.2 的取件函式用 `created_at` 判斷「卡住」，超過 10 分鐘的舊工作被取走後，另一個 worker 會馬上再取一次，家長收到兩次推播（PGlite 實測重現）。
 
@@ -121,7 +122,7 @@ student-app 寫入（`status='pending'`），parent-app 推播 worker 處理。*
 - 欄位缺了不會壞（有預設文字），但請不要改既有欄位的意思。
 - **新增 kind**：先寫進這張表。parent-app 還沒支援的 kind 會被標成 `skipped`（`last_error = 'unknown kind …'`）。
 - 狀態：`sent`（全部裝置送出）、`failed`（有裝置暫時失敗，會重試，`attempts` 到 5 停）、`skipped`（沒有 active 家長、家長關閉該類通知、沒有裝置、kind 不認得、到班通知超過 12 小時、訊息超過 7 天）。
-- 觸發：Supabase Database Webhook（`notification_jobs` INSERT → parent-app `POST /api/jobs/notify`，header `x-notify-secret`），加 pg_cron 每 5 分鐘補送。student-app 不用做任何事。
+- 觸發：Supabase Database Webhook（`notification_jobs` INSERT → parent-app `POST /api/jobs/notify`，header `x-notify-secret`；或 SQL 版 trigger `parent_app_notify`，二選一），加 pg_cron 每 5 分鐘補送。student-app 不用做任何事。
 - 家長端上線當天執行一次 parent-app `migrations/2026-11-05-launch-day.sql`（積壓的舊通知標 `skipped`）。
 
 ---
@@ -208,6 +209,7 @@ student-app e2e 已檢查：老師不能幫別班學生產生（403）、可以�
 
 | 日期 | 哪邊 | 變更 | 對方要做的事 |
 |---|---|---|---|
+| 2026-11-05 | parent-app | 新增 `migrations/2026-11-05-optional-webhook-trigger.sql`（後台找不到 Database Webhooks 時的 SQL 替代方案，第 2.3 節）；DEPLOY.md 步驟 4 更新 Webhooks 位置（Integrations） | 無 |
 | 2026-11-05 | parent-app | 新增 `docs/DEPLOY.md`（部署狀態與上線清單）。確認：parent-app 尚無 Vercel 專案；student-app 綁定碼雜湊與 parent-app 一致 | 使用者照 DEPLOY.md 第 2 節先設 student-app 的 pepper；**家長端上線前不要發綁定碼給真的家長**（7 天過期） |
 | 2026-11-05 | student-app | **待辦 #1 完成**：`POST /api/guardian-codes`（單一學生或整班，第 5 節規格，commit `ba8fc22`，已上線 codexstudy.com）；班級學生頁「綁定碼」與「全班家長綁定單」。新增 student-app 環境變數 `GUARDIAN_CODE_PEPPER`（必設）、`PARENT_APP_URL`（選用） | parent-app 無須改程式；使用者完成待辦 #2 後即可實際綁定，建議用一組真碼走一次完整綁定 |
 | 2026-11-05 | parent-app | 建立本文件，取代原本的 `docs/student-app-requests.md` | 改共用合約前先讀本文件 |
