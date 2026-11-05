@@ -44,7 +44,7 @@ Next.js 15（App Router）＋ React 19 ＋ TypeScript ＋ Supabase ＋ `web-push
 | `lib/binding.ts` | 綁定碼正規化與雜湊（**與 student-app 共用的規格**） |
 | `public/sw.js` | service worker：顯示推播、點通知開 App |
 | `migrations/` | 家長端自己的 SQL（見下方） |
-| `docs/student-app-requests.md` | **需要 student-app 配合的項目** |
+| `docs/SYNC.md` | **與 student-app 的同步文件**（共用表、API、通知格式、綁定碼、待辦、變更紀錄）。改共用的東西前先讀 |
 
 ## 開發
 
@@ -96,7 +96,7 @@ npx tsc --noEmit && npm run lint
 （worker 本身也會把超過 12 小時的到班通知標成 `skipped`，雙重保險。）
 
 ### 6. student-app 那邊
-綁定碼要由老師在 student-app 產生，見 [`docs/student-app-requests.md`](docs/student-app-requests.md)。這個做好之前家長無法綁定。
+綁定碼要由老師在 student-app 產生，見 [`docs/SYNC.md`](docs/SYNC.md) 第 5 節。這個做好之前家長無法綁定。
 
 ## 推播規則
 - 一筆 job＝一位學生：送給所有 active 家長的每台已訂閱裝置。
