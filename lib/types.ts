@@ -19,3 +19,6 @@ export type ThreadMessage = {
   id: string; sender_type: 'staff' | 'guardian' | 'system'; sender_name: string | null
   recipient: 'guardians' | 'teacher' | 'director'; body: string; created_at: string; mine: boolean
 }
+export type ThreadRow = { student: { id: string; display_name: string }; last: ThreadMessage | null; unread: number }
+export type ThreadsResponse = { threads: ThreadRow[]; unread_total: number }
+export type Me = { guardian: { id: string; display_name: string | null; phone: string | null; email: string | null }; prefs: { attendance: boolean; messages: boolean } }

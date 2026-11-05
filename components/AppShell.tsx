@@ -1,49 +1,73 @@
 'use client'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useEffect, type ReactNode } from 'react'
-import clsx from 'clsx'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useAuth } from './AuthProvider'
+import { Icon, type IconName } from './Icon'
+import { api } from '@/lib/client/api'
 
-const NAV = [
-  { href: '/', label: '小孩', icon: '🏠' },
-  { href: '/bind', label: '綁定', icon: '🔗' },
-  { href: '/settings', label: '設定', icon: '⚙️' },
+const NAV: { href: string; label: string; icon: IconName }[] = [
+  { href: '/', label: '首頁', icon: 'home' },
+  { href: '/messages', label: '訊息', icon: 'message' },
+  { href: '/attendance', label: '到班', icon: 'calendar' },
+  { href: '/me', label: '我的', icon: 'user' },
 ]
 
-/** 登入後頁面的外框：未登入導到 /login；上方標題、下方導覽列 */
-export function AppShell({ title, back, hideNav, children }: { title: string; back?: string; hideNav?: boolean; children: ReactNode }) {
+const isActive = (href: string, path: string) => (href === '/' ? path === '/' : path === href || path.startsWith(`${href}/`))
+
+/**
+ * v2 外殼（docs/v2-ui-kit 第 4 節）：手機＝頂部列＋底部浮動四格分頁列；≥1180px＝左側欄。
+ * title 有值時頂部列顯示頁面名稱（＋小字），否則顯示品牌。back 有值時顯示返回鍵並隱藏分頁列（對話頁）。
+ */
+export function AppShell({ title, sub, back, children }: { title?: string; sub?: string; back?: string; children: ReactNode }) {
   const { session, loading } = useAuth()
   const router = useRouter()
   const path = usePathname()
+  const [unread, setUnread] = useState(0)
 
   useEffect(() => {
     if (!loading && !session) router.replace(`/login?next=${encodeURIComponent(path)}`)
   }, [loading, session, router, path])
 
-  if (loading || !session) return <div className="flex min-h-dvh items-center justify-center text-ink-mute">載入中…</div>
+  useEffect(() => {
+    if (!session) return
+    api<{ unread_total: number }>('/api/threads').then(r => setUnread(r.unread_total)).catch(() => {})
+  }, [session, path])
+
+  if (loading || !session) return <div className="pa-loading">載入中…</div>
+  const initial = (session.user.email ?? '我').slice(0, 1).toUpperCase()
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-xl flex-col">
-      <header className="safe-top sticky top-0 z-10 border-b border-paper-line bg-paper/95 backdrop-blur">
-        <div className="flex h-14 items-center gap-2 px-4">
-          {back && <Link href={back} className="-ml-2 rounded-lg px-2 py-1 text-xl text-ink-soft" aria-label="返回">‹</Link>}
-          <h1 className="truncate text-lg font-bold">{title}</h1>
-        </div>
+    <div className="cx-shell">
+      <aside className="cx-side" aria-label="主選單">
+        <Link href="/" className="head"><span className="cx-logo">C</span><span className="cx-brand">CODEX STUDY<small>家長</small></span></Link>
+        {NAV.map(n => (
+          <Link key={n.href} href={n.href} className={`cx-nav${isActive(n.href, path) ? ' is-active' : ''}`}>
+            <Icon name={n.icon} />{n.label}
+            {n.href === '/messages' && unread > 0 && <span className="cx-dot" style={{ marginLeft: 'auto' }}>{unread}</span>}
+          </Link>
+        ))}
+      </aside>
+
+      <header className="cx-top">
+        {back && <Link href={back} className="pa-back" aria-label="返回"><Icon name="back" /></Link>}
+        {!back && !title && <span className="cx-logo">C</span>}
+        <span className="cx-brand">{title ?? 'CODEX STUDY'}<small>{title ? sub : '家長'}</small></span>
+        {!back && <Link href="/me" className="cx-avatar" style={{ marginLeft: 'auto', textDecoration: 'none' }} aria-label="我的">{initial}</Link>}
       </header>
-      <main className={clsx('flex-1 px-4 pt-4', hideNav ? 'pb-4' : 'pb-24')}>{children}</main>
-      {!hideNav && <nav className="safe-bottom fixed inset-x-0 bottom-0 z-10 border-t border-paper-line bg-paper-card/95 backdrop-blur">
-        <div className="mx-auto flex max-w-xl">
-          {NAV.map(n => {
-            const active = n.href === '/' ? path === '/' || path.startsWith('/messages') : path.startsWith(n.href)
-            return (
-              <Link key={n.href} href={n.href} className={clsx('flex flex-1 flex-col items-center py-2 text-xs', active ? 'font-semibold text-brand-dark' : 'text-ink-mute')}>
-                <span className="text-xl leading-6" aria-hidden>{n.icon}</span>{n.label}
-              </Link>
-            )
-          })}
-        </div>
-      </nav>}
+
+      <main className="cx-main">{children}</main>
+
+      {!back && (
+        <nav className="cx-tabs" style={{ ['--tabs' as string]: NAV.length }} aria-label="主選單">
+          {NAV.map(n => (
+            <Link key={n.href} href={n.href} className={`cx-tab${isActive(n.href, path) ? ' is-active' : ''}`} aria-current={isActive(n.href, path) ? 'page' : undefined}>
+              <Icon name={n.icon} />{n.label}
+              {n.href === '/messages' && unread > 0 && <span className="cx-dot">{unread}</span>}
+            </Link>
+          ))}
+        </nav>
+      )}
     </div>
   )
 }

@@ -93,3 +93,24 @@ export async function postGuardianMessage(supabase: Supa, p: {
   await markGuardianRead(supabase, thread.id, p.guardianId)
   return toGuardianMessage(row, p.guardianId)
 }
+
+export type ThreadSummary = { student_id: string; last: GuardianMessage | null; unread: number }
+
+/** 訊息列表：每位綁定的小孩一列（最後一則這位家長看得到的訊息＋未讀數） */
+export async function threadSummaries(supabase: Supa, guardianId: string, studentIds: string[]): Promise<ThreadSummary[]> {
+  if (!studentIds.length) return []
+  const threads = must(await supabase.from('message_threads').select('id, student_id').in('student_id', studentIds)) as { id: string; student_id: string }[]
+  const unread = await guardianUnread(supabase, guardianId, studentIds)
+  const lastByStudent = new Map<string, GuardianMessage>()
+  await Promise.all(threads.map(async t => {
+    const [a, b] = await Promise.all([
+      supabase.from('messages').select(COLS).eq('thread_id', t.id).eq('recipient', 'guardians').order('created_at', { ascending: false }).limit(1),
+      supabase.from('messages').select(COLS).eq('thread_id', t.id).eq('sender_guardian_id', guardianId).order('created_at', { ascending: false }).limit(1),
+    ])
+    const rows = [...(must(a) as Row[]), ...(must(b) as Row[])]
+      .filter(r => r.recipient === 'guardians' || r.sender_guardian_id === guardianId)
+      .sort((x, y) => y.created_at.localeCompare(x.created_at))
+    if (rows[0]) lastByStudent.set(t.student_id, toGuardianMessage(rows[0], guardianId))
+  }))
+  return studentIds.map(id => ({ student_id: id, last: lastByStudent.get(id) ?? null, unread: unread.get(id) ?? 0 }))
+}

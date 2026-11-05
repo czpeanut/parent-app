@@ -14,10 +14,18 @@ student-app 負責「寫」上課記錄、成績、熟練度、老師訊息；�
 | ② 上課／下課通知 | 推播 worker 處理 `notification_jobs`（`attendance.check_in`／`check_out`）→ Web Push |
 | ③ 收老師訊息 | 同上（`message.new`）＋ 訊息畫面 |
 | ④ 傳訊息給老師或主任 | `POST /api/threads/:studentId` 寫入 `messages`（`recipient = 'teacher'`／`'director'`），student-app 收件匣看得到 |
-| 設定 | 顯示名稱（老師看到的名字）、到班／訊息通知開關、這台裝置推播開關、解除綁定、登出 |
+| 到班紀錄 | 最近 60 天上課／下課（台灣時間分日）、本月／本週到班天數、平均時數；到班推播點進來就是這頁 |
+| 我的 | 顯示名稱（老師看到的名字）、到班／訊息通知開關、這台裝置推播開關、解除綁定、登出 |
 
 ## 技術棧
-Next.js 15（App Router）＋ React 19 ＋ TypeScript ＋ Tailwind v3 ＋ Supabase ＋ `web-push`。部署在 Vercel（另開專案，與 student-app 互不影響）。
+Next.js 15（App Router）＋ React 19 ＋ TypeScript ＋ Supabase ＋ `web-push`。部署在 Vercel（另開專案，與 student-app 互不影響）。
+
+## 介面
+照 student-app 的 `docs/v2-ui-kit/`（學生端 v2「今日動態」同一套外觀）：
+- `app/codex-v2.css` 是 kit 的 `codex-v2.css` **原封不動複製**過來（student-app 改了就重新複製，不要在這裡改）；家長端自己的少量樣式在 `app/app.css`，只用 kit 的 token。
+- 外殼 `components/AppShell.tsx`：手機頂部列＋底部浮動四格分頁列（首頁、訊息、到班、我的），≥1180px 換左側欄。
+- 五個畫面對照 kit 第 5 節：首頁 `/`、訊息 `/messages`、對話 `/messages/[studentId]`、到班紀錄 `/attendance`、綁定 `/bind`（沒有綁定時首頁直接導過去）；另有「我的」`/me`、登入 `/login`。
+- 圖示是 `components/Icon.tsx` 的內嵌 SVG（與 kit 預覽相同路徑），沒有另外裝圖示套件。
 
 ## 目錄
 
@@ -26,7 +34,9 @@ Next.js 15（App Router）＋ React 19 ＋ TypeScript ＋ Tailwind v3 ＋ Supaba
 | `app/api/me` | 目前家長（第一次呼叫建立 `guardians` 列）、改名字、通知偏好 |
 | `app/api/children` | 轉呼叫 student-app；`[studentId]` DELETE＝解除綁定（改 `revoked`） |
 | `app/api/bind` | 綁定碼 |
+| `app/api/threads` | 訊息列表：每位小孩最後一則＋未讀數 |
 | `app/api/threads/[studentId]` | 讀對話串（標已讀）／家長傳訊息 |
+| `app/api/attendance/[studentId]` | 到班紀錄：最近 60 天＋本月統計（`lib/attendance.ts`） |
 | `app/api/push` | VAPID 公鑰、訂閱／取消訂閱這台裝置 |
 | `app/api/jobs/notify` | 推播 worker（webhook／排程呼叫） |
 | `lib/server/*` | 伺服器端邏輯（全部用 service role，每次都檢查 `student_guardians.status = 'active'`） |
@@ -55,7 +65,7 @@ npx tsc --noEmit && npm run lint
 3. `migrations/2026-11-05-optional-guardian-rls.sql` **第一版不用執行**（全部走伺服器 API）；之後要讓前端直接讀（Realtime）再執行。
 
 ### 2. Vercel 環境變數（新專案，值不要貼到對話或 repo）
-見 `.env.example`：
+見 `.env.example`。`NEXT_PUBLIC_*` 是 build 時寫進前端的，設定或修改後要重新部署：
 
 | 變數 | 說明 |
 |---|---|

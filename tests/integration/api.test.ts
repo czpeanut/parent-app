@@ -11,6 +11,8 @@ import * as bind from '@/app/api/bind/route'
 import * as children from '@/app/api/children/route'
 import * as child from '@/app/api/children/[studentId]/route'
 import * as threads from '@/app/api/threads/[studentId]/route'
+import * as threadList from '@/app/api/threads/route'
+import * as attendance from '@/app/api/attendance/[studentId]/route'
 import * as push from '@/app/api/push/route'
 import * as notify from '@/app/api/jobs/notify/route'
 
@@ -45,6 +47,13 @@ function fixtures(): Record<string, Row[]> {
     ],
     message_reads: [], guardian_bind_attempts: [], guardian_push_subscriptions: [], guardian_notification_prefs: [],
     notification_jobs: [], notification_deliveries: [],
+    classes: [{ id: 'cls1', name: '七年甲班' }],
+    attendance_events: [
+      { id: 'a1', student_id: S1, class_id: 'cls1', event_type: 'check_in', event_time: hours(5) },
+      { id: 'a2', student_id: S1, class_id: 'cls1', event_type: 'check_out', event_time: hours(2) },
+      { id: 'a3', student_id: S1, class_id: 'cls1', event_type: 'check_in', event_time: hours(24 * 70) },
+      { id: 'a4', student_id: S2, class_id: 'cls1', event_type: 'check_in', event_time: hours(1) },
+    ],
   }
 }
 
@@ -194,6 +203,32 @@ describe('訊息', () => {
     expect((await child.DELETE(req(`/api/children/${S2}`, { token: tok.dad, method: 'DELETE' }), params(S2))).status).toBe(200)
     expect(supa.db.student_guardians.find(l => l.id === 'sg9')!.status).toBe('revoked')
     expect((await threads.GET(req(`/api/threads/${S2}`, { token: tok.dad }), params(S2))).status).toBe(403)
+  })
+})
+
+describe('訊息列表與到班紀錄', () => {
+  it('訊息列表：每位綁定的小孩一列，最後一則、未讀', async () => {
+    const r = await json(await threadList.GET(req('/api/threads', { token: tok.dad })))
+    expect(r.status).toBe(200)
+    const t = r.data.threads.find((x: Row) => x.student.id === S1)
+    expect(t.student.display_name).toBe('陳一號')
+    expect(t.last.mine).toBe(true)                       // 最後一則是爸爸自己寫的
+    expect(JSON.stringify(r.data)).not.toContain('別人寫給老師')
+    expect(JSON.stringify(r.data)).not.toContain('t@x.com')
+    expect(r.data.threads.some((x: Row) => x.student.id === S2)).toBe(false)   // 已解除綁定
+  })
+  it('沒有 guardians 列的帳號：空清單', async () => {
+    const r = await json(await threadList.GET(req('/api/threads', { token: tok.mom })))
+    expect(r.status).toBe(200)
+  })
+  it('到班紀錄：只回最近 60 天、附班級名稱與統計；沒綁定 → 403', async () => {
+    const r = await json(await attendance.GET(req(`/api/attendance/${S1}`, { token: tok.dad }), params(S1)))
+    expect(r.status).toBe(200)
+    expect(r.data.events.map((e: Row) => e.event_type)).toEqual(['check_out', 'check_in'])
+    expect(r.data.events[0].class_name).toBe('七年甲班')
+    expect(r.data.stats).toHaveProperty('month_days')
+    expect((await attendance.GET(req(`/api/attendance/${S2}`, { token: tok.dad }), params(S2))).status).toBe(403)
+    expect((await attendance.GET(req(`/api/attendance/${S1}`, { token: tok.kid }), params(S1))).status).toBe(401)
   })
 })
 

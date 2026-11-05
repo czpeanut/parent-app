@@ -34,7 +34,7 @@ export function formatJob(job: Job): PushContent | null {
     const body = job.kind === 'attendance.check_in'
       ? `${BRAND}${student} 已於 ${time} 到達${where ? ` ${where}` : ''}`
       : `${BRAND}${student} 已於 ${time} 下課離開${where ? ` ${where}` : ''}`
-    return { title: job.kind === 'attendance.check_in' ? `${student} 已到班` : `${student} 已下課`, body, url: '/', tag: `att-${job.student_id}` }
+    return { title: job.kind === 'attendance.check_in' ? `${student} 已到班` : `${student} 已下課`, body, url: `/attendance?child=${job.student_id}`, tag: `att-${job.student_id}` }
   }
   if (job.kind === 'message.new') {
     const sender = str(p.sender_name) ?? '老師'

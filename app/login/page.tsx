@@ -50,35 +50,37 @@ function LoginInner() {
   }
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-6 py-10">
-      <div className="mb-8 text-center">
-        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-brand text-2xl font-black text-white shadow-card">C</div>
-        <h1 className="text-2xl font-bold">CODEX STUDY 家長端</h1>
-        <p className="mt-2 text-sm text-ink-soft">到班通知、段考準備進度、與老師聯絡</p>
+    <div className="pa-solo cx-enter">
+      <span className="cx-logo big-logo">C</span>
+      <div>
+        <span className="cx-label">CODEX STUDY・家長</span>
+        <h1 style={{ marginTop: 6 }}>登入</h1>
+        <p className="lead-text">看小孩的到班狀態、段考準備進度，和老師聯絡。</p>
       </div>
 
       {step === 'email' ? (
-        <form onSubmit={sendCode} className="space-y-3">
-          <label className="label" htmlFor="email">Email</label>
-          <input id="email" className="input" type="email" inputMode="email" autoComplete="email" placeholder="name@example.com"
-            value={email} onChange={e => setEmail(e.target.value)} required />
-          <button className="btn-primary w-full" disabled={busy}>{busy ? '寄送中…' : '寄送登入碼'}</button>
+        <form onSubmit={sendCode} style={{ display: 'grid', gap: 16 }}>
+          <label className="pa-field">Email
+            <input className="cx-input" type="email" inputMode="email" autoComplete="email" placeholder="name@example.com"
+              value={email} onChange={e => setEmail(e.target.value)} required />
+          </label>
+          <button className="cx-btn primary pa-wide" disabled={busy}>{busy ? '寄送中…' : '寄登入碼給我'}</button>
         </form>
       ) : (
-        <form onSubmit={verify} className="space-y-3">
-          <p className="text-sm text-ink-soft">已寄到 <b>{email}</b>。輸入信中的驗證碼，或直接點信裡的登入連結。</p>
-          <label className="label" htmlFor="code">驗證碼</label>
-          <input id="code" className="input text-center text-2xl tracking-[0.4em]" inputMode="numeric" autoComplete="one-time-code"
-            maxLength={10} value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))} required />
-          <button className="btn-primary w-full" disabled={busy || code.length < 6}>{busy ? '驗證中…' : '登入'}</button>
-          <button type="button" className="w-full py-2 text-sm text-ink-soft underline" onClick={() => { setStep('email'); setCode('') }}>換一個 Email</button>
+        <form onSubmit={verify} style={{ display: 'grid', gap: 16 }}>
+          <p className="cx-muted" style={{ fontSize: 14 }}>登入碼已寄到 <b style={{ color: 'var(--color-text)' }}>{email}</b>。輸入信裡的 6 位數登入碼，或直接點信裡的登入連結。</p>
+          <label className="pa-field">登入碼
+            <input className="cx-input pa-code" inputMode="numeric" autoComplete="one-time-code" maxLength={10}
+              value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))} required />
+          </label>
+          <button className="cx-btn primary pa-wide" disabled={busy || code.length < 6}>{busy ? '登入中…' : '登入'}</button>
+          <button type="button" className="pa-link" onClick={() => { setStep('email'); setCode('') }}>換一個 Email</button>
         </form>
       )}
 
-      <div className="my-6 flex items-center gap-3 text-xs text-ink-mute"><span className="h-px flex-1 bg-paper-line" />或<span className="h-px flex-1 bg-paper-line" /></div>
-      <button className="btn-ghost w-full" onClick={google}>使用 Google 帳號登入</button>
-
-      {error && <p role="alert" className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
+      <div className="pa-or">或</div>
+      <button className="cx-btn pa-wide" onClick={google}>用 Google 帳號登入</button>
+      {error && <div className="pa-error" role="alert">{error}</div>}
     </div>
   )
 }

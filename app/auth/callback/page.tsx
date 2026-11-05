@@ -23,11 +23,11 @@ function CallbackInner() {
   }, [error, router, sp])
 
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center">
+    <div className="pa-solo">
       {error ? (<>
-        <p className="text-red-700">{error}</p>
-        <a className="btn-ghost" href="/login">回登入頁</a>
-      </>) : <p className="text-ink-mute">登入中…</p>}
+        <div className="pa-error" role="alert">{error}</div>
+        <a className="cx-btn pa-wide" href="/login">回登入頁</a>
+      </>) : <div className="pa-loading">登入中…</div>}
     </div>
   )
 }
