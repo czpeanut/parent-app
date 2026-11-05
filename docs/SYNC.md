@@ -5,7 +5,7 @@
 >
 > - 位置：`czpeanut/parent-app` 的 `docs/SYNC.md`
 > - 兩個專案共用同一個 Supabase（同一組資料表、同一個 Auth）
-> - 最後更新：2026-11-05（parent-app）
+> - 最後更新：2026-11-05（student-app：待辦 #1 綁定碼完成）
 
 ---
 
@@ -26,11 +26,10 @@
 
 | # | 誰要做 | 事項 | 狀態 |
 |---|---|---|---|
-| 1 | **student-app** | 老師／主任產生家長綁定碼（規格見第 5 節）。**沒有這個，家長無法綁定，家長端整個不能用** | ⏳ 未開始（2026-11-05 確認 student-app 尚無 `/api/guardian-codes`） |
-| 2 | 使用者 | 在兩邊 Vercel 設**同一個** `GUARDIAN_CODE_PEPPER` | ⏳ |
+| 2 | 使用者 | 在兩邊 Vercel 設**同一個** `GUARDIAN_CODE_PEPPER`（student-app 沒設時產生綁定碼回 503「家長綁定尚未設定」） | ⏳ |
 | 3 | 使用者 | 執行 parent-app `migrations/2026-11-05-parent-app.sql`（含 `notification_jobs.claimed_at`，第 2.3 節） | ⏳ |
 | 4 | student-app（選用） | 家長傳訊息時通知教職員（目前老師要打開系統才看得到）。可新增 `notification_jobs` kind，例如 `staff.message.new`；家長端遇到不認得的 kind 會標成 `skipped`，不會誤送給家長 | 💡 之後再說 |
-| 5 | student-app（選用） | 綁定單／「家長 N」旁放家長端網址（家長端部署後填入第 6 節） | 💡 |
+| 5 | 使用者 | 家長端部署後，在 student-app Vercel 設 `PARENT_APP_URL`（綁定單與綁定碼對話框會印出網址；沒設時寫「CODEX STUDY 家長 App」），並填入第 6 節 | 💡 等家長端部署 |
 
 ---
 
@@ -48,7 +47,7 @@
 | `attendance_events` | 寫（按上課／下課） | `student_id`, `event_type`, `event_time`, `class_id` | — |
 | `guardians` | 讀（算人數、顯示） | `id`, `user_id`, `display_name`, `phone`, `email` | INSERT（`user_id`, `email`, `display_name`）；UPDATE `display_name`, `phone` |
 | `student_guardians` | 讀（`status = 'active'` 才算綁定） | `student_id`, `guardian_id`, `relationship`, `status` | UPSERT on `(student_id, guardian_id)`：`status='active'`, `verified_at`, `relationship`；解除綁定 UPDATE `status='revoked'`（不刪） |
-| `guardian_binding_codes` | **INSERT（待辦 #1）**、作廢舊碼 | `id`, `student_id`, `code_hash`, `expires_at`, `used_at`, `attempts` | UPDATE `attempts`, `used_at`, `used_by` |
+| `guardian_binding_codes` | INSERT（`student_id`, `code_hash`, `expires_at`, `created_by`）；產生新碼時把同學生未使用、未過期的舊碼 UPDATE `expires_at = now()` | `id`, `student_id`, `code_hash`, `expires_at`, `used_at`, `attempts` | UPDATE `attempts`, `used_at`, `used_by` |
 | `message_threads` | 寫 | `id`, `student_id` | UPSERT on `student_id`；UPDATE `last_message_at` |
 | `messages` | 寫（`sender_type='staff'`, `recipient='guardians'`） | `id`, `thread_id`, `sender_type`, `sender_name`, `sender_guardian_id`, `recipient`, `body`, `created_at`（**不讀也不回傳 `sender_staff_email`**） | INSERT：`sender_type='guardian'`, `sender_guardian_id`, `sender_name`, `recipient` ∈ `teacher`/`director`, `body`（1–2000 字，去頭尾空白） |
 | `message_reads` | 寫（`reader_type='staff'`, `reader_key`=email） | `reader_type='guardian'` 的列 | UPSERT `(thread_id, 'guardian', <guardians.id>, last_read_at)` |
@@ -126,19 +125,19 @@ student-app 寫入（`status='pending'`），parent-app 推播 worker 處理。*
 
 ---
 
-## 5. 綁定碼（待辦 #1 的規格）
+## 5. 綁定碼
 
-**兩邊必須完全一致。** parent-app 實作在 `lib/binding.ts`、`lib/server/bind.ts`。
+**兩邊必須完全一致。** parent-app 實作在 `lib/binding.ts`、`lib/server/bind.ts`；student-app 實作在 `lib/services/guardian-codes.ts`、`app/api/guardian-codes/route.ts`（2026-11-05，commit `ba8fc22`，兩邊單元測試都有下面的已知答案）。
 
 | 項目 | 規格 |
 |---|---|
-| 產生者 | student-app `POST /api/guardian-codes`（老師限自己班、主任限自己分校），body `{ student_id }`（建議也支援 `{ class_id }` 整班產生、列印綁定單） |
+| 產生者 | student-app `POST /api/guardian-codes`（老師限自己班、主任限自己分校、管理員不限），body `{ student_id }` 或 `{ class_id }`（整班）。回應 `{ parent_app_url, codes: [{ student_id, display_name, code: "ABCD-EFGH", expires_at, guardians }] }`。介面：班級學生頁每張卡「綁定碼」、整班「家長綁定單」（列印） |
 | 長度／字元 | 8 碼，`ABCDEFGHJKLMNPQRSTUVWXYZ23456789`（排除 0/O/1/I），用 `crypto.randomInt` |
 | 顯示 | 可印成 `ABCD-EFGH`；家長輸入時忽略大小寫、空白、連字號 |
 | 雜湊 | `code_hash = sha256(8 碼大寫明碼 + GUARDIAN_CODE_PEPPER)`，UTF-8，**小寫 hex**。資料庫只存雜湊，明碼只在產生當下回傳一次 |
 | 已知答案 | `sha256("ABCDEFGH" + "pepper")` = `ea043ebe4ed383c513dcad2dc2f53c8e6dcf1a93dd855d26fcbcd22548026090` |
 | 期限 | `expires_at = now() + 7 天` |
-| 一位學生一個有效碼 | 產生新碼時，舊的未使用碼作廢（`expires_at = now()` 或刪除） |
+| 一位學生一個有效碼 | 產生新碼時，舊的未使用碼作廢（student-app 用 `expires_at = now()`，不刪除） |
 | 其他欄位 | `created_by` = 老師 email；`attempts`、`used_at`、`used_by` 由 parent-app 更新 |
 | 碼撞到 | `code_hash` UNIQUE，23505 時重新產生 |
 | parent-app 驗證 | 雜湊比對 → 未使用、未過期 → 條件式 UPDATE `used_at`（同時兩人用只有一人成功）→ UPSERT `student_guardians` active。錯誤一律「綁定碼錯誤或已過期」。同帳號或同 IP 每小時 10 次 |
@@ -151,7 +150,7 @@ const code_hash = createHash('sha256').update(code + process.env.GUARDIAN_CODE_P
 // 顯示給老師：`${code.slice(0, 4)}-${code.slice(4)}`
 ```
 
-建議 student-app e2e 檢查：老師不能幫別班學生產生（403）；產生新碼後舊碼失效；回應明碼與資料庫 `code_hash` 符合上面規格。
+student-app e2e 已檢查：老師不能幫別班學生產生（403）、可以幫自己班；產生新碼後舊碼失效；回應明碼與資料庫 `code_hash` 符合上面規格（7 天、`created_by`、資料庫不存明碼）；整班產生。
 
 ---
 
@@ -185,6 +184,7 @@ const code_hash = createHash('sha256').update(code + process.env.GUARDIAN_CODE_P
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL`、`NEXT_PUBLIC_SUPABASE_ANON_KEY`、`SUPABASE_SERVICE_ROLE_KEY` | 同值 |
 | `GUARDIAN_CODE_PEPPER` | **同值**（只在伺服器端，不要加 `NEXT_PUBLIC_`） |
+| `PARENT_APP_URL` | 只有 student-app（選用）：家長端網址，印在綁定單上 |
 
 ### 網址
 | 專案 | 網址 |
@@ -207,6 +207,7 @@ const code_hash = createHash('sha256').update(code + process.env.GUARDIAN_CODE_P
 
 | 日期 | 哪邊 | 變更 | 對方要做的事 |
 |---|---|---|---|
+| 2026-11-05 | student-app | **待辦 #1 完成**：`POST /api/guardian-codes`（單一學生或整班，第 5 節規格，commit `ba8fc22`，已上線 codexstudy.com）；班級學生頁「綁定碼」與「全班家長綁定單」。新增 student-app 環境變數 `GUARDIAN_CODE_PEPPER`（必設）、`PARENT_APP_URL`（選用） | parent-app 無須改程式；使用者完成待辦 #2 後即可實際綁定，建議用一組真碼走一次完整綁定 |
 | 2026-11-05 | parent-app | 建立本文件，取代原本的 `docs/student-app-requests.md` | 改共用合約前先讀本文件 |
 | 2026-11-05 | parent-app | 介面改用 v2 UI kit（`app/codex-v2.css` = student-app commit `fd9404d` 版本）；新增到班紀錄頁、訊息列表；到班推播點開改到 `/attendance` | 無 |
 | 2026-11-05 | parent-app | `notification_jobs` 加 `claimed_at`、新增 `claim_notification_jobs`（第 2.3 節） | 無（知悉即可） |
