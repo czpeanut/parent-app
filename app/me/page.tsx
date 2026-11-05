@@ -47,7 +47,7 @@ export default function MePage() {
     try { await api('/api/me', { method: 'PATCH', body: { prefs: { [k]: v } } }) } catch (err) { setMe(prev); flash(false, (err as Error).message) }
   }
   const togglePush = async () => {
-    try { if (push === 'on') { await disablePush(); setPush('off') } else setPush(await enablePush()) } catch { flash(false, '通知設定失敗，請再試一次') }
+    try { if (push === 'on') { await disablePush(); setPush('off') } else setPush(await enablePush()) } catch (e) { flash(false, `通知設定失敗：${(e as Error).message || '請再試一次'}`) }
   }
   const unbind = async (id: string, nm: string) => {
     if (!confirm(`解除綁定 ${nm}？解除後不會再收到 ${nm} 的到班與老師訊息。`)) return
