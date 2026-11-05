@@ -66,11 +66,21 @@ Vercel → Add New → Project → 匯入 `czpeanut/parent-app`（框架自動�
 執行 `migrations/2026-11-05-parent-app.sql`（家長端自己的 4 張表、推播取件函式、`notification_jobs.claimed_at` 欄位）。可重複執行。
 
 ### 步驟 4：Supabase 設定（共用，**不要改 Site URL**）
-1. Authentication → URL Configuration → Redirect URLs：加 `https://<家長端網址>/auth/callback`。
-2. Authentication → Email Templates → Magic Link：內文加上 `{{ .Token }}`（例如「您的登入碼：{{ .Token }}」）。
-3. Authentication → SMTP Settings：設自己的寄信服務（內建每小時只能寄很少封，家長一多就收不到登入碼）。
-4. Database → Webhooks → 新增：表 `notification_jobs`、事件 Insert、HTTP POST `https://<家長端網址>/api/jobs/notify`、Header `x-notify-secret: <NOTIFY_WEBHOOK_SECRET>`。
-5. （建議）補送排程：開啟 `pg_cron`、`pg_net`，執行 `migrations/2026-11-05-optional-schedule.sql`（先把裡面的網址和密鑰換掉）。
+
+**「家長端網址」是什麼**：Vercel 部署完會自動給一個網址，例如 `https://parent-app-xxxx.vercel.app`（Vercel 專案首頁「Domains」那一欄）。不需要自己買網域；之後要換成 `parent.codexstudy.com`，把下面用到網址的地方改掉就好。
+- 用**正式（Production）網址**，不要用每次部署都會變的預覽網址（`parent-app-git-…`、`parent-app-<一串亂碼>-…`）。預覽網址預設要登入 Vercel 才能開，Supabase 呼叫不進去，推播會失敗。
+- 要有正式網址，Vercel 的正式分支（Settings → Environments → Production → Branch Tracking）要有程式：把開發分支合併成 `main`，或暫時把正式分支設成 `ccr-529ce6a2-416dw7`。
+- **GitHub Pages 不行**：它只能放靜態網頁，家長端的綁定、訊息、推播都要跑伺服器程式。
+
+以下都在 Supabase 後台（跟 student-app 同一個專案）：
+
+| # | 在哪裡 | 做什麼 | 為什麼 | 測試期間可以先跳過嗎 |
+|---|---|---|---|---|
+| 1 | Authentication → URL Configuration → **Redirect URLs** → Add URL | 加 `https://<家長端網址>/auth/callback`（**不要改上面的 Site URL**，那是 student-app 的） | Supabase 只會把登入後的使用者送回清單裡的網站；沒加的話「用 Google 登入」和信裡的登入連結會跑回 codexstudy.com | 只用 Email 登入碼的話可以；要測 Google 登入就要加 |
+| 2 | Authentication → **Email Templates** → Magic Link | 在信件內文加一行 `您的登入碼：{{ .Token }}` | 家長在 App 裡輸入 6 位數登入碼（iPhone 從主畫面開的 App 點信裡的連結會跳去 Safari，用登入碼比較順） | 不行，不加的話信裡沒有登入碼，只能點連結 |
+| 3 | Authentication → **SMTP Settings** | 設定寄信服務（例如 Resend、SendGrid） | Supabase 內建寄信每小時只能寄幾封，家長一多就收不到登入碼 | 可以，自己測試幾次用內建就夠 |
+| 4 | Database → **Webhooks** → Create a new hook | 名稱隨意；Table `notification_jobs`；Events 勾 **Insert**；Type「HTTP Request」；Method `POST`；URL `https://<家長端網址>/api/jobs/notify`；HTTP Headers 加一筆 `x-notify-secret` = 你設的 `NOTIFY_WEBHOOK_SECRET` | 老師按上課／下課或傳訊息時，資料庫會多一筆「待通知」；這個設定讓 Supabase 馬上叫家長端去送推播 | 不測推播的話可以；沒設就收不到任何推播 |
+| 5 | Database → Extensions 開 `pg_cron`、`pg_net`，再到 SQL Editor 執行 `migrations/2026-11-05-optional-schedule.sql`（先把裡面的網址和密鑰換掉） | 每 5 分鐘補送一次失敗或漏掉的通知 | 第 4 項偶爾失敗時的保險 | 可以 |
 
 ### 步驟 5：上線當天
 開始推播前執行一次 `migrations/2026-11-05-launch-day.sql`（把上線前積壓的到班通知標成略過，家長不會一次收到好幾天前的通知）。
