@@ -5,7 +5,7 @@
 >
 > - 位置：`czpeanut/parent-app` 的 `docs/SYNC.md`
 > - 兩個專案共用同一個 Supabase（同一組資料表、同一個 Auth）
-> - 最後更新：2026-11-05（parent-app：新增 DEPLOY.md、待辦 #2、#6）
+> - 最後更新：2026-11-07（parent-app：部署狀態更新、新增 HANDOFF.md、vercel.json 東京）
 
 ---
 
@@ -26,11 +26,11 @@
 
 | # | 誰要做 | 事項 | 狀態 |
 |---|---|---|---|
-| 2 | 使用者 | `GUARDIAN_CODE_PEPPER`：**家長端還沒有 Vercel 專案**，所以先產生一個值設到 student-app 並自己保存，建家長端 Vercel 時再設同一個值（步驟見 [`docs/DEPLOY.md`](DEPLOY.md) 第 2 節）。student-app 沒設時產生綁定碼回 503「家長綁定尚未設定」 | ⏳ |
-| 6 | 使用者 | 建立 parent-app Vercel 專案（目前沒有；repo 也還沒有 `main`）。完整順序見 [`docs/DEPLOY.md`](DEPLOY.md) | ⏳ |
-| 3 | 使用者 | 執行 parent-app `migrations/2026-11-05-parent-app.sql`（含 `notification_jobs.claimed_at`，第 2.3 節） | ⏳ |
+| 2 | 使用者 | 兩邊 Vercel 設同一個 `GUARDIAN_CODE_PEPPER` | ✅ 2026-11-06（使用者綁定成功） |
+| 6 | 使用者 | 建立 parent-app Vercel 專案 | ✅ 已建立（正式網址、正式分支待確認，見 parent-app `HANDOFF.md` 2.2） |
+| 3 | 使用者 | 執行 parent-app `migrations/2026-11-05-parent-app.sql`（含 `notification_jobs.claimed_at`，第 2.3 節） | ✅ 已執行 |
 | 4 | student-app（選用） | 家長傳訊息時通知教職員（目前老師要打開系統才看得到）。可新增 `notification_jobs` kind，例如 `staff.message.new`；家長端遇到不認得的 kind 會標成 `skipped`，不會誤送給家長 | 💡 之後再說 |
-| 5 | 使用者 | 家長端部署後，在 student-app Vercel 設 `PARENT_APP_URL`（綁定單與綁定碼對話框會印出網址；沒設時寫「CODEX STUDY 家長 App」），並填入第 6 節 | 💡 等家長端部署 |
+| 5 | 使用者 | 在 student-app Vercel 設 `PARENT_APP_URL`（綁定單與綁定碼對話框會印出網址；沒設時寫「CODEX STUDY 家長 App」），並填入第 6 節。家長端已部署；**建議等換成自己的網址（例如 `parent.codexstudy.com`）再設**，避免綁定單印上 `vercel.app` 網址 | ⏳ |
 
 ---
 
@@ -209,6 +209,8 @@ student-app e2e 已檢查：老師不能幫別班學生產生（403）、可以�
 
 | 日期 | 哪邊 | 變更 | 對方要做的事 |
 |---|---|---|---|
+| 2026-11-07 | parent-app | 已部署並實測（Google 登入、綁定、推播）。新增 `HANDOFF.md`（目前狀態、下一步、排查紀錄）；新增 `vercel.json` 函式放東京（同 student-app `ea75172`） | 無 |
+| 2026-11-06 | parent-app | 登入跳回網址不帶參數（Redirect URLs 只填 `/auth/callback` 也能比對，建議填 `/**`）；開啟通知失敗時顯示原因 | 無（Supabase Redirect URLs 為共用設定，已加家長端網址） |
 | 2026-11-05 | parent-app | 新增 `migrations/2026-11-05-optional-webhook-trigger.sql`（後台找不到 Database Webhooks 時的 SQL 替代方案，第 2.3 節）；DEPLOY.md 步驟 4 更新 Webhooks 位置（Integrations） | 無 |
 | 2026-11-05 | parent-app | 新增 `docs/DEPLOY.md`（部署狀態與上線清單）。確認：parent-app 尚無 Vercel 專案；student-app 綁定碼雜湊與 parent-app 一致 | 使用者照 DEPLOY.md 第 2 節先設 student-app 的 pepper；**家長端上線前不要發綁定碼給真的家長**（7 天過期） |
 | 2026-11-05 | student-app | **待辦 #1 完成**：`POST /api/guardian-codes`（單一學生或整班，第 5 節規格，commit `ba8fc22`，已上線 codexstudy.com）；班級學生頁「綁定碼」與「全班家長綁定單」。新增 student-app 環境變數 `GUARDIAN_CODE_PEPPER`（必設）、`PARENT_APP_URL`（選用） | parent-app 無須改程式；使用者完成待辦 #2 後即可實際綁定，建議用一組真碼走一次完整綁定 |

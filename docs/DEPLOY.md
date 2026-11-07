@@ -7,15 +7,8 @@
 
 ## 1. 目前狀態
 
-| 項目 | 狀態 |
-|---|---|
-| student-app 產生綁定碼（`POST /api/guardian-codes`） | ✅ 已上線 codexstudy.com（commit `ba8fc22`） |
-| student-app Vercel 的 `GUARDIAN_CODE_PEPPER` | ⏳ 使用者設定（沒設時老師按「綁定碼」會看到「家長綁定尚未設定」） |
-| **parent-app Vercel 專案** | ❌ **還沒有**。repo 沒有 `main` 分支，程式在 `ccr-529ce6a2-416dw7` 分支 |
-| parent-app 的 migration（`migrations/2026-11-05-parent-app.sql`） | ⏳ 未執行 |
-| 兩邊的雜湊算法 | ✅ 已核對一致（同字元集、大寫碼、`sha256(碼 + pepper)` 小寫 hex；兩邊單元測試同一組已知答案） |
-
-結論：**student-app 現在就可以產生綁定碼，但家長還沒有地方輸入**（家長端沒部署）。
+**最新狀態以根目錄 [`HANDOFF.md`](../HANDOFF.md) 第 2 節為準**（2026-11-07：已部署，Google 登入、綁定、推播都實測可用；還差自己的網址、SMTP、上線當天 SQL）。
+下面的步驟保留給重新部署、換網址或建新環境時照做。
 
 ---
 

@@ -44,6 +44,7 @@ Next.js 15（App Router）＋ React 19 ＋ TypeScript ＋ Supabase ＋ `web-push
 | `lib/binding.ts` | 綁定碼正規化與雜湊（**與 student-app 共用的規格**） |
 | `public/sw.js` | service worker：顯示推播、點通知開 App |
 | `migrations/` | 家長端自己的 SQL（見下方） |
+| `HANDOFF.md` | **交接文件：目前狀態、下一步、排查紀錄（從這裡開始讀）** |
 | `docs/DEPLOY.md` | **部署狀態與上線清單**（目前還沒有 Vercel 專案） |
 | `docs/SYNC.md` | **與 student-app 的同步文件**（共用表、API、通知格式、綁定碼、待辦、變更紀錄）。改共用的東西前先讀 |
 
